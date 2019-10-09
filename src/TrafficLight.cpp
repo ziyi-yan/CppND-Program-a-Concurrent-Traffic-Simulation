@@ -70,28 +70,36 @@ void TrafficLight::cycleThroughPhases()
     // to the message queue using move semantics. The cycle duration should be a random value between 4 and 6 seconds.
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles.
     using namespace std::chrono_literals;
+
+    // generate random duration
+    std::random_device r;
+    std::default_random_engine e(r());
+    std::uniform_real_distribution<double> uniform_dist(4, 6);
+    auto duration = uniform_dist(e);
+
+    auto lastUpdate = std::chrono::steady_clock::now();
+
     while (true) {
-        // generate random duration
-        std::random_device r;
-        std::default_random_engine e(r());
-        std::uniform_int_distribution<int> uniform_dist(4, 6);
-        int duration = uniform_dist(e);
-        std::this_thread::sleep_for(std::chrono::seconds(duration));
-
-        // toggle phase
-        switch (_currentPhase)
-        {
-        case TrafficLightPhase::red:
-            _currentPhase = TrafficLightPhase::green;
-            break;
-        case TrafficLightPhase::green:
-            _currentPhase = TrafficLightPhase::red;
-            break;
-        }
-
-        // sends an update method to the message queue
-        _mq.send(std::move(_currentPhase));
-
         std::this_thread::sleep_for(1ms);
+
+        auto now = std::chrono::steady_clock::now();
+        auto diff = now - lastUpdate;
+        if (diff >= std::chrono::duration<double>(duration)) {
+            // update duration and lastUpdate
+            duration = uniform_dist(e);
+            lastUpdate = now;
+            // toggle phase
+            switch (_currentPhase)
+            {
+            case TrafficLightPhase::red:
+                _currentPhase = TrafficLightPhase::green;
+                break;
+            case TrafficLightPhase::green:
+                _currentPhase = TrafficLightPhase::red;
+                break;
+            }
+            // sends an update method to the message queue
+            _mq.send(std::move(_currentPhase));
+        }
     }
 }
